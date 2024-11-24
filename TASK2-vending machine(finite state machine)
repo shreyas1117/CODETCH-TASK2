@@ -1,0 +1,73 @@
+module vending_machine_(
+    input clk,
+    input rst,
+    input [1:0] in, // 01 = 5 rs, 10 = 10 rs
+    output reg out, // 1 = item dispensed, 0 = no item
+    output reg [1:0] change // Change returned: 01 = 5 rs, 10 = 10 rs
+);
+    // State definitions
+    parameter s0 = 2'b00; // 0 rs
+    parameter s1 = 2'b01; // 5 rs
+    parameter s2 = 2'b10; // 10 rs
+
+    reg [1:0] c_state, n_state; // Current and next state
+
+    // State transition logic (sequential)
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            c_state <= s0;
+            out <= 0;
+            change <= 2'b00;
+        end else begin
+            c_state <= n_state;
+        end
+    end
+
+    // Next state and output logic (combinational)
+    always @(*) begin
+        // Default assignments
+        n_state = c_state;
+        out = 0;
+        change = 2'b00;
+
+        case (c_state)
+            s0: begin // State 0: 0 rs
+                if (in == 2'b01) begin // 5 rs inserted
+                    n_state = s1;
+                end else if (in == 2'b10) begin // 10 rs inserted
+                    n_state = s2;
+                end
+            end
+
+            s1: begin // State 1: 5 rs
+                if (in == 2'b00) begin // No additional input
+                    n_state = s0;
+                    change = 2'b01; // Return 5 rs
+                end else if (in == 2'b01) begin // Additional 5 rs inserted
+                    n_state = s2;
+                end else if (in == 2'b10) begin // Additional 10 rs inserted
+                    n_state = s0;
+                    out = 1; // Dispense item
+                end
+            end
+
+            s2: begin // State 2: 10 rs
+                if (in == 2'b00) begin // No additional input
+                    n_state = s0;
+                    change = 2'b10; // Return 10 rs
+                end else if (in == 2'b01) begin // Additional 5 rs inserted
+                    n_state = s0;
+                    out = 1; // Dispense item
+                end else if (in == 2'b10) begin // Additional 10 rs inserted
+                    n_state = s0;
+                    out = 1; // Dispense item
+                    change = 2'b01; // Return 5 rs as change
+                end
+            end
+
+            default: begin
+                n_state = s0; // Default to state 0 for safety
+            end
+        endcase
+    end
+endmodule
